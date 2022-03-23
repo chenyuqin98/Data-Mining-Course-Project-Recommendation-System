@@ -2,6 +2,7 @@ import sys
 import time
 from pyspark import SparkContext
 import numpy as np
+from tqdm import tqdm
 import xgboost
 import json
 import math
@@ -47,7 +48,7 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
     ratings, similarities = [], []
     for i in range(len(user_items)):
         similar = count_pearson_similarity(business_id, user_items[i][0])
-        if similar != 0:
+        if similar > 0.5:
             ratings.append(user_items[i][1])
             similarities.append(similar)
 
@@ -134,50 +135,104 @@ def count_item_avg(row):
 
 
 def generate_feature(rdd, type='train'):
-    X = np.array(rdd.map(lambda r: find_feature_in_json(r)).collect())
+    X = np.array(rdd.map(lambda r: find_feature(r)).collect())
     if type=='train':
         Y = np.array(rdd.map(lambda r: r[2]).collect())
         return X, Y
     return X
 
 
-def find_feature_in_json(row):
+def find_feature(row):
     user_id = row[0]
     business_id = row[1]
-    user_average_star, user_review_count, business_average_star, business_review_count = np.NAN, np.NAN, np.NAN, np.NAN
+    user_average_star, user_review_count, business_average_star, business_review_count \
+        = np.NAN, np.NAN, np.NAN, np.NAN
+    user_useful, user_fans = np.NAN, np.NAN
+    user_var, business_var = np.NAN, np.NAN
     if user_id in user_id_feature_map.keys():
         user_average_star = user_id_feature_map[user_id][0]
         user_review_count = user_id_feature_map[user_id][1]
+        user_useful = user_id_feature_map[user_id][2]
+        user_fans = user_id_feature_map[user_id][3]
     if business_id in business_id_feature_map.keys():
         business_average_star = business_id_feature_map[business_id][0]
         business_review_count = business_id_feature_map[business_id][1]
-    return [user_average_star, user_review_count, business_average_star, business_review_count]
+    if user_id in user_var_dict.keys():
+        user_var = user_var_dict[user_id]
+    if business_id in business_var_dict.keys():
+        business_var = business_var_dict[business_id]
+    # feature_list = [user_average_star, user_review_count, business_average_star, business_review_count,
+    #                 user_var, business_var]
+    # feature_list = [user_average_star, user_review_count, business_average_star, business_review_count]
+    feature_list = [user_average_star, user_review_count, business_average_star, business_review_count,
+                    user_useful, user_fans]
+    return feature_list
+
+
+def count_variance(row):
+    item_list = row[1]
+    sum, count = 0, 0
+    for i in item_list:
+        sum += i
+        count += 1
+    avg =  sum / count
+    var = 0
+    for i in item_list:
+        var += (i - avg) ** 2
+    var /= count
+    return (row[0], var)
+
+
+def count_RSME(k):
+    with open("data/yelp_val.csv") as in_file:
+        ans = in_file.readlines()[1:]
+    RMSE = 0
+    for i in range(len(Y_pred)):
+        model_based = Y_pred[i]
+        item_based = CL_prediction[i][2]
+        neighbor_size = CL_prediction[i][3]
+        a = math.tanh(neighbor_size / k)
+        final_score = a * item_based + (1 - a) * model_based
+        diff = float(final_score) - float(ans[i].split(",")[2])
+        RMSE += diff ** 2
+    RMSE = (RMSE / len(Y_pred)) ** (1 / 2)
+    return RMSE
 
 
 if __name__ == '__main__':
     start_time = time.time()
 
     sc = SparkContext.getOrCreate()
+    sc.setLogLevel('ERROR')
     train_rdd = read_csv(fold_path + 'yelp_train.csv', 'train')
     val_rdd = read_csv(test_file_path, 'val')
-    # print('count test: ', val_rdd.count())
+
+    # use 4 sets to filter json features.
     user_set = set(train_rdd.map(lambda r: (r[0])).distinct().collect())
     business_set = set(train_rdd.map(lambda r: (r[1])).distinct().collect())
-    # print(len(user_set), len(business_set))
+    user_val_set = set(val_rdd.map(lambda r: (r[0])).distinct().collect())
+    business_val_set = set(val_rdd.map(lambda r: (r[1])).distinct().collect())
+
+    # count variance features
+    user_var = train_rdd.map(lambda r: (r[0], float(r[2]))).groupByKey().map(lambda r: count_variance(r))
+    business_var = train_rdd.map(lambda r: (r[1], float(r[2]))).groupByKey().map(lambda r: count_variance(r))
+    user_var_dict = user_var.collectAsMap()
+    business_var_dict = business_var.collectAsMap()
 
     business_feature_rdd = sc.textFile(fold_path + "business.json").map(lambda x: json.loads(x)).map(
         lambda x: (x["business_id"], (float(x["stars"]), float(x["review_count"])))).filter(
-        lambda x: x[0] in business_set)
+        lambda x: x[0] in business_set or x[0] in business_val_set)
     user_feature_rdd = sc.textFile(fold_path + "user.json").map(lambda x: json.loads(x)).map(
-        lambda x: (x["user_id"], (float(x["average_stars"]), float(x["review_count"])))).filter(
-        lambda x: x[0] in user_set)
+        lambda x: (x["user_id"], (float(x["average_stars"]), float(x["review_count"]),
+        float(x['useful']), float(x['fans'])))).filter(
+        lambda x: x[0] in user_set or x[0] in user_val_set)
     # print(business_feature_rdd.first(), user_feature_rdd.first())
     business_id_feature_map = business_feature_rdd.collectAsMap()
     user_id_feature_map = user_feature_rdd.collectAsMap()
 
     X_train, Y_train = generate_feature(train_rdd)
-    # print(np.shape(X_train))
-    model = xgboost.XGBRegressor(n_estimators=30, random_state=233, max_depth=7)
+
+    model = xgboost.XGBRegressor(n_estimators=50, random_state=233, max_depth=7)
     model.fit(X_train, Y_train)
     val_list = val_rdd.collect()
     X_pred = generate_feature(val_rdd, type='test')
@@ -188,38 +243,43 @@ if __name__ == '__main__':
     # eg: {'3MntE_HWbNNoyiLGxywjYA': 3.4}
     train_item_avg = train_rdd.map(lambda r: (r[1], float(r[2]))).groupByKey().map(lambda r: count_item_avg(r))
     item_avg_dict = train_item_avg.collectAsMap()
-    # print(train_item_avg.first())
-    # print('item_avg_dict', list(item_avg_dict.items())[0])
 
     # collect item user dict to seek co-item
     item_user_dict = train_rdd.map(lambda r: (r[1], r[0])).groupByKey().mapValues(set).collectAsMap()
-    # print('item_user_dict', list(item_user_dict.items())[0])
 
     # transfer the triple to dict for quickly find: (user_id,business_id,stars) -> {(user_id, business_id) : stars}
     train_star_dict = train_rdd.map(lambda r: ((r[0], r[1]), float(r[2]))).collectAsMap()
-    # print('train_star_dict', list(train_star_dict.items())[0])
 
     # to find items both stared by one user. what we get is user co-items: {user_id: [(business_id, star)...]}
     user_item_dict = train_rdd.map(lambda r: (r[0], [r[1], float(r[2])])).groupByKey().mapValues(list).collectAsMap()
-    # print('user_item_dict', list(user_item_dict.items())[0])
 
     # item similarity dic to avoid repeat and thus accelerate
     item_similarity_dic = {}
 
     CL_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
-    # print(CL_prediction[0])
 
-    # max_neighbor = 0
-    with open(output_file_path, 'w') as f:
+    RSME = 10
+    best_k = 0
+    RSME_li = []
+    for k in tqdm(range(1, 500, 10)):
+        currRSME = count_RSME(k)
+        RSME_li.append(currRSME)
+        if currRSME < RSME:
+          best_k = k
+          RSME = currRSME
+    print(best_k, RSME, RSME_li)
+
+    with open(output_file_path, 'w+') as f:
         f.writelines('user_id, business_id, prediction' + '\n')
         for i in range(len(Y_pred)):
             model_based = Y_pred[i]
             item_based = CL_prediction[i][2]
             neighbor_size = CL_prediction[i][3]
-            a = math.tanh(neighbor_size/300)
+            a = math.tanh(neighbor_size / best_k)
+            # a = math.tanh(neighbor_size/300)
+            # a = neighbor_size / (neighbor_size + 5)
             final_score = a * item_based + (1 - a) * model_based
             f.writelines(str(val_list[i][0])+','+str(val_list[i][1])+','+str(final_score)+'\n')
-            # max_neighbor = max(neighbor_size, max_neighbor)
 
     # print(max_neighbor)
     print('Duration: ', time.time() - start_time)
