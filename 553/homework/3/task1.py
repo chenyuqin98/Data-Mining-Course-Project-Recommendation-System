@@ -47,6 +47,7 @@ if __name__=='__main__':
     sc = SparkContext.getOrCreate()
     sc.setLogLevel("ERROR")
     all_rdd = sc.textFile(input_file_path)
+    all_rdd.count()
     header = all_rdd.first()
     business_user = all_rdd.filter(lambda r: r != header).map(lambda r: (r.split(',')[1], r.split(',')[0])).sortByKey()
 

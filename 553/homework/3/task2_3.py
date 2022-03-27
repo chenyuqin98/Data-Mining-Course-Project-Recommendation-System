@@ -16,6 +16,7 @@ topN = 5
 
 def read_csv(file_path, type):
     data = sc.textFile(file_path)
+    data.count()
     data_header = data.first()
     data = data.filter(lambda r: r != data_header)
     if type == 'train':
