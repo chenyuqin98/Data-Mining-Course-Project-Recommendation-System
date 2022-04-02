@@ -26,7 +26,9 @@ def count(file):
 if __name__ == '__main__':
     # with open("test/task2_3output.csv") as in_file:
     # with open("task2_3output.csv") as in_file:
-    print("-----test/task23out.csv-----")
-    count("test/task23out.csv")
-    print("-----task2_2output.csv-----")
-    count("task2_2output.csv")
+    # print("-----test/task23out.csv-----")
+    # count("test/task23out.csv")
+    # print("-----task2_2output.csv-----")
+    # count("task2_2output.csv")
+
+    count('help/task2_2.csv')
