@@ -1,4 +1,5 @@
 import itertools
+from itertools import combinations
 import sys
 import time
 import random
@@ -77,6 +78,12 @@ class GraphFrame(object):
 
         # variable using for compute modularity
         self.best_communities = None
+
+        # pre calculate for Q
+        self.edge_num = 0
+        for k in self.edges.keys():
+            self.edge_num += len(self.edges[k])
+        self.adjacent_matrix = edges
 
     def __init_weight_dict__(self):
         [self.vertex_weight_dict.setdefault(vertex, 1) for vertex in self.vertexes]
@@ -225,129 +232,86 @@ class GraphFrame(object):
 
         return self.betweenness_result_tuple_list
 
-    def extractCommunities(self):
-        """
-        extract communities from butch of edge pairs
-        :return:
-        """
-        max_modularity = float("-inf")
-        # reuse the betweenness dict
-        # if len(self.betweenness_result_tuple_list) > 0:
-        #     # cut edges with highest betweenness
-        #     self._cut_highest_btw_edge(self.betweenness_result_tuple_list)
-        #     self.best_communities, max_modularity = self._computeModularity()
-        #     print('init communities len: ', len(self.best_communities))
-        #     # recompute and update self.betweenness_result_tuple_list
-        #     self.betweenness_result_tuple_list = self.computeBetweenness()
+    def remove_edges(self):
+        max_betweenness = self.betweenness_rlt[0][0]
+        # print(self.betweenness_rlt[:3])
+        for item in self.betweenness_rlt:
+            if item[0] >= max_betweenness:
+                edge = item[1]
+                print('removing this edge: ', edge)
+                print('edges storage detail: ',len(self.edges[edge[0]]), len(self.edges[edge[1]]))
+                # self.edges[edge[0]].remove(edge[1])
+                # self.edges[edge[1]].remove(edge[0])
+                if self.edges[edge[0]] is not None:
+                    try:
+                        self.edges[edge[0]].remove(edge[1])
+                    except ValueError:
+                        pass
+                if self.edges[edge[1]] is not None:
+                    try:
+                        self.edges[edge[1]].remove(edge[0])
+                    except ValueError:
+                        pass
+                print('edges storage detail after remove: ', len(self.edges[edge[0]]), len(self.edges[edge[1]]))
+            else: break
 
-        # print('\n')
-        # print('000000000000000', max_modularity)
-        # print(self.betweenness_result_tuple_list[0])
+    def count_modularity(self):
+        sum = 0
+        for cluster in self.curr_communities:
+            for pair in combinations(list(cluster), 2):
+                pair = pair if pair[0] < pair[1] else (pair[1], pair[0])
+                k0 = len(self.edges[pair[0]])
+                k1 = len(self.edges[pair[1]])
+                A_ij = 1 if pair[1] in self.adjacent_matrix[pair[0]] else 0
+                sum += float(A_ij - ( k0*k1 / self.edge_num ) )
+        return float(sum / self.edge_num)
+
+    def search_current_communities(self):
+        self.curr_communities = []
+        # use a set to record if a node is visited globally
+        global_visited = set()
+        # use one_community to record the community we are exploring
+        one_community = set()
+        next_visit = [self.vertexes[0]]
+
+        # do bfs search, until all vertexes are visited and put into one community:
+        while len(global_visited) < len(self.vertexes):
+            while len(next_visit) > 0:
+                curr_node = next_visit.pop(0)
+                one_community.add(curr_node)
+                global_visited.add(curr_node)
+                for next_node in self.edges[curr_node]:
+                    if next_node not in global_visited:
+                        next_visit.append(next_node)
+            self.curr_communities.append(sorted(one_community))
+            one_community = set() # clear community for next loop
+            if len(global_visited) < len(self.vertexes):
+                next_root = set(self.vertexes).difference(global_visited).pop()
+                next_visit.append(next_root)
+        return self.curr_communities
+
+    def find_best_communities(self):
+        max_modularity = -1
+        self.best_community = self.search_current_communities()
+        curr_modularity = self.count_modularity()
+
         while True:
-            # cut edges with highest betweenness
-            self._cut_highest_btw_edge(self.betweenness_result_tuple_list)
-            communities, current_modularity = self._computeModularity()
-            self.betweenness_result_tuple_list = self.computeBetweenness()
             print('\n')
-            print('111111111111', current_modularity)
-            print(self.betweenness_result_tuple_list[0])
-            if current_modularity < max_modularity:
-                # break when elbow point shows
-                break
+            print(curr_modularity)
+            print(self.betweenness_rlt[0])
+
+            self.remove_edges()
+
+            curr_community = self.search_current_communities()
+            curr_modularity = self.count_modularity()
+            self.count_betweennesses()
+            if curr_modularity > max_modularity:
+                self.best_community = curr_community
+                max_modularity = curr_modularity
             else:
-                # when current_modularity > max_modularity happens:
-                # we still need to cut the edges
-                self.best_communities = communities
-                max_modularity = current_modularity
-
-
-        return sorted(self.best_communities, key=lambda item: (len(item), item[0], item[1]))
-
-    def _cut_highest_btw_edge(self, edge_btw_tuple_list):
-        """
-        remove edges with highest betweenness and also update the self.edges
-        :param edge_btw_tuple_list: need to be a [sorted] list, sorted by value
-        :return:
-        """
-        # this is the edge you need to cut
-        temp_value = 0
-        # if there have multiple pair have same highest bet score,
-        # we cut them in one loop
-        edge_pair = edge_btw_tuple_list[0][0]
-
-        print('removing this edge: ', edge_pair)
-        print('edges storage detail: ', len(self.edges[edge_pair[0]]), len(self.edges[edge_pair[1]]))
-        if self.edges[edge_pair[0]] is not None:
-            try:
-                self.edges[edge_pair[0]].remove(edge_pair[1])
-            except ValueError:
-                pass
-
-        if self.edges[edge_pair[1]] is not None:
-            try:
-                self.edges[edge_pair[1]].remove(edge_pair[0])
-            except ValueError:
-                pass
-        print('edges storage detail after remove: ', len(self.edges[edge_pair[0]]), len(self.edges[edge_pair[1]]))
-
-    def _computeModularity(self):
-        """
-        compute the modularity based on communities we get
-        :return: a list of communities and a float number => modularity
-        """
-
-        # 1. detect communities from current edge_pairs
-        communities = self._detectCommunities()
-
-        # 2. compute modularity based on the communities
-        # 2.1 count original graph's edge number => self.m
-        # 2.2 build adjacent matrix => self.A_matrix
-        temp_sum = 0
-        for cluster in communities:
-            for node_pair in itertools.combinations(list(cluster), 2):
-                temp_key = cmp(node_pair[0], node_pair[1])
-                k_i = len(self.edges[node_pair[0]])
-                k_j = len(self.edges[node_pair[1]])
-                A = 1 if temp_key in self.A_matrix else 0
-                temp_sum += float(A - (k_i * k_j / (2 * self.m)))
-        return communities, float(temp_sum / (2 * self.m))
-
-    def _detectCommunities(self):
-        """
-        detect communities based on self.edge
-        basically, we randomly pick one root and find all connected node with root
-        and then do the same thing on the rest of node
-        :return: a list of set() which contain communities
-        """
-        communities = list()  # result will be return
-        need2visit = list()  # a stack actually
-        temp_node_set = set()  # using to save each communities
-        visited = set()  # track which node has been visited
-
-        # random pick a root to detect communities
-        random_root = self.vertexes[random.randint(0, len(self.vertexes) - 1)]
-        temp_node_set.add(random_root)
-        need2visit.append(random_root)
-        # if still has some node we haven't visit, do the loop
-        while len(visited) != len(self.vertexes):
-            while len(need2visit) > 0:
-                parent_node = need2visit.pop(0)
-                temp_node_set.add(parent_node)
-                visited.add(parent_node)
-                for children in self.edges[parent_node]:
-                    if children not in visited:
-                        temp_node_set.add(children)
-                        need2visit.append(children)
-                        visited.add(children)
-
-            communities.append(sorted(temp_node_set))
-            temp_node_set = set()
-            if len(self.vertexes) > len(visited):
-                # pick one from rest of unvisited nodes
-                need2visit.append(set(self.vertexes).difference(visited).pop())
-
-        return communities
-
+                break
+        self.best_community.sort(key = lambda r: (len(r), r))
+        return self.best_community
 
 if __name__ == '__main__':
     start = time.time()
@@ -404,8 +368,8 @@ if __name__ == '__main__':
     # export your finding
     export2File(betweenness_result, betweenness_file_path)
 
-    communities_result = graph_frame.extractCommunities()
-    # export your finding
-    export2File(communities_result, community_file_path)
+    # communities_result = graph_frame.extractCommunities()
+    # # export your finding
+    # export2File(communities_result, community_file_path)
 
     print("Duration: %d s." % (time.time() - start))

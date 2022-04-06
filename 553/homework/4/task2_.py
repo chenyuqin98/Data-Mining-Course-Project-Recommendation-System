@@ -26,8 +26,6 @@ def filter_pairs():
             edges.add(tuple(pair))
             edges.add(tuple((pair[1], pair[0])))
     edges = sc.parallelize(edges).groupByKey().mapValues(lambda r: sorted(list(r))).collectAsMap()
-    # edges = sc.parallelize(edges).groupByKey() \
-    #     .mapValues(lambda uidxs: sorted(list(set(uidxs)))).collectAsMap()
     return edges, list(vertexes)
 
 
@@ -40,10 +38,11 @@ class MyGraph():
         self.betweenness = collections.defaultdict(float)
         self.betweenness_rlt = []
         self.count_betweennesses()
-
+        # pre calculate for Q
         self.edge_num = 0
         for k in self.edges.keys():
             self.edge_num += len(self.edges[k])
+        self.adjacent_matrix = edges
 
     def bfs_count_shortest_path_num(self, root):
         self.parent_set = {}
@@ -107,23 +106,23 @@ class MyGraph():
         max_betweenness = self.betweenness_rlt[0][0]
         # print(self.betweenness_rlt[:3])
         for item in self.betweenness_rlt:
-            # print(item)
             if item[0] >= max_betweenness:
                 edge = item[1]
                 print('removing this edge: ', edge)
-                print('edges storage detail: ',self.edges[edge[0]], self.edges[edge[1]])
-                self.edges[edge[0]].remove(edge[1])
-                self.edges[edge[1]].remove(edge[0])
-                # if self.edges[edge[0]] is not None:
-                #     try:
-                #         self.edges[edge[0]].remove(edge[1])
-                #     except ValueError:
-                #         pass
-                # if self.edges[edge[1]] is not None:
-                #     try:
-                #         self.edges[edge[1]].remove(edge[0])
-                #     except ValueError:
-                #         pass
+                print('edges storage detail: ',len(self.edges[edge[0]]), len(self.edges[edge[1]]))
+                # self.edges[edge[0]].remove(edge[1])
+                # self.edges[edge[1]].remove(edge[0])
+                if self.edges[edge[0]] is not None:
+                    try:
+                        self.edges[edge[0]].remove(edge[1])
+                    except ValueError:
+                        pass
+                if self.edges[edge[1]] is not None:
+                    try:
+                        self.edges[edge[1]].remove(edge[0])
+                    except ValueError:
+                        pass
+                print('edges storage detail after remove: ', len(self.edges[edge[0]]), len(self.edges[edge[1]]))
             else: break
 
     def count_modularity(self):
@@ -133,7 +132,7 @@ class MyGraph():
                 pair = pair if pair[0] < pair[1] else (pair[1], pair[0])
                 k0 = len(self.edges[pair[0]])
                 k1 = len(self.edges[pair[1]])
-                A_ij = 1 if pair[1] in self.edges[pair[0]] else 0
+                A_ij = 1 if pair[1] in self.adjacent_matrix[pair[0]] else 0
                 sum += float(A_ij - ( k0*k1 / self.edge_num ) )
         return float(sum / self.edge_num)
 
@@ -167,11 +166,15 @@ class MyGraph():
         curr_modularity = self.count_modularity()
 
         while True:
+            print('\n')
             print(curr_modularity)
+            print(self.betweenness_rlt[:3])
+
             self.remove_edges()
-            self.count_betweennesses()
+
             curr_community = self.search_current_communities()
             curr_modularity = self.count_modularity()
+            self.count_betweennesses()
             if curr_modularity > max_modularity:
                 self.best_community = curr_community
                 max_modularity = curr_modularity
@@ -210,7 +213,7 @@ if __name__ == "__main__":
             f.writelines(str(r[1])+', '+str(round(r[0], 5))+'\n')
 
     init_community = my_graph.search_current_communities()
-    print(len(init_community))
+    print('init communities len: ', len(init_community)) # for test
     best_community = my_graph.find_best_communities()
     with open(community_output_file_path, 'w') as f:
         for r in best_community:
