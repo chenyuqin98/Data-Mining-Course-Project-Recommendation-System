@@ -248,9 +248,8 @@ class GraphFrame(object):
             self._cut_highest_btw_edge(self.betweenness_result_tuple_list)
             communities, current_modularity = self._computeModularity()
             self.betweenness_result_tuple_list = self.computeBetweenness()
-            print('\n')
-            print('111111111111', current_modularity)
-            print(self.betweenness_result_tuple_list[0])
+            # print('\n')
+            print('remove_log', current_modularity, self.betweenness_result_tuple_list[0])
             if current_modularity < max_modularity:
                 # break when elbow point shows
                 break
@@ -275,8 +274,8 @@ class GraphFrame(object):
         # we cut them in one loop
         edge_pair = edge_btw_tuple_list[0][0]
 
-        print('removing this edge: ', edge_pair)
-        print('edges storage detail: ', len(self.edges[edge_pair[0]]), len(self.edges[edge_pair[1]]))
+        # print('removing this edge: ', edge_pair)
+        # print('edges storage detail: ', len(self.edges[edge_pair[0]]), len(self.edges[edge_pair[1]]))
         if self.edges[edge_pair[0]] is not None:
             try:
                 self.edges[edge_pair[0]].remove(edge_pair[1])
@@ -288,7 +287,7 @@ class GraphFrame(object):
                 self.edges[edge_pair[1]].remove(edge_pair[0])
             except ValueError:
                 pass
-        print('edges storage detail after remove: ', len(self.edges[edge_pair[0]]), len(self.edges[edge_pair[1]]))
+        # print('edges storage detail after remove: ', len(self.edges[edge_pair[0]]), len(self.edges[edge_pair[1]]))
 
     def _computeModularity(self):
         """

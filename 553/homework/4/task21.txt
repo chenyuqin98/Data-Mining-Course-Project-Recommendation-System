@@ -167,9 +167,9 @@
 ('_VTEyUzzH92X3w-IpGaXVA', 'ay4M5J28kBUf0odOQct0BA'), 112.91387
 ('DKolrsBSwMTpTJL22dqJRQ', 'WoKCLSctS7G2547xKcED-Q'), 111.87024
 ('0FVcoJko1kfZCrJRfssfIA', 'XPAJ2KHkCwBA0vafF-2Zcg'), 110.95933
-('0FVcoJko1kfZCrJRfssfIA', 'CebjpVd3PsofCgotWp60pg'), 110.45933
 ('0FVcoJko1kfZCrJRfssfIA', '2XYdguaaZ7dgi6fAlddujg'), 110.45933
 ('0FVcoJko1kfZCrJRfssfIA', '4PQhC-zTQ4ACEN0-r39JuQ'), 110.45933
+('0FVcoJko1kfZCrJRfssfIA', 'CebjpVd3PsofCgotWp60pg'), 110.45933
 ('JM0GL6Dx4EuZ1mprLk5Gyg', 'mu4XvWvJOb3XpG1C_CHCWA'), 109.31667
 ('S1cjSFKcS5NVc3o1MkfpwA', 'pDNeS1nbkKS7mJmhRQJPig'), 108.5
 ('mm9WYrFhiNqvHCyhQKw3Mg', 'pDNeS1nbkKS7mJmhRQJPig'), 108.5
@@ -249,8 +249,8 @@
 ('39FT2Ui8KUXwmUt6hnwy-g', 'mu4XvWvJOb3XpG1C_CHCWA'), 79.68333
 ('S1cjSFKcS5NVc3o1MkfpwA', 'jnn504CkjtfbYIwBquWmBw'), 79.5
 ('jnn504CkjtfbYIwBquWmBw', 'mm9WYrFhiNqvHCyhQKw3Mg'), 79.5
-('2XYdguaaZ7dgi6fAlddujg', 'bSUS0YcvS7UelmHvCzNWBA'), 78.54067
 ('4PQhC-zTQ4ACEN0-r39JuQ', 'bSUS0YcvS7UelmHvCzNWBA'), 78.54067
+('2XYdguaaZ7dgi6fAlddujg', 'bSUS0YcvS7UelmHvCzNWBA'), 78.54067
 ('CebjpVd3PsofCgotWp60pg', 'bSUS0YcvS7UelmHvCzNWBA'), 78.54067
 ('XPAJ2KHkCwBA0vafF-2Zcg', '_VTEyUzzH92X3w-IpGaXVA'), 78.04067
 ('A-U-K9z9oraMH7eBZW1dOA', 'Gua5GdTlTWJpovtG7Hdtyg'), 76.25
@@ -302,8 +302,8 @@
 ('bSUS0YcvS7UelmHvCzNWBA', 'dW6bAWM1HbPdk_cGS_a2HA'), 32.51376
 ('0FVcoJko1kfZCrJRfssfIA', 'dTeSvET2SR5LDF_J07wJAQ'), 31.55476
 ('_VTEyUzzH92X3w-IpGaXVA', 'dW6bAWM1HbPdk_cGS_a2HA'), 31.30705
-('WoKCLSctS7G2547xKcED-Q', 'bSUS0YcvS7UelmHvCzNWBA'), 31.30476
 ('WoKCLSctS7G2547xKcED-Q', '_VTEyUzzH92X3w-IpGaXVA'), 31.30476
+('WoKCLSctS7G2547xKcED-Q', 'bSUS0YcvS7UelmHvCzNWBA'), 31.30476
 ('7RCz4Ln_FaTvNrdwe251Dg', 'zBi_JWB5uUdVuz3JLoAxGQ'), 31.23968
 ('SVC0CajvmYfH5uAq4JnGvg', 'cyuDrrG5eEK-TZI867MUPA'), 29.0
 ('ZZvfGGLnAkSBSUduV7KN-w', 'cyuDrrG5eEK-TZI867MUPA'), 29.0
