@@ -1,0 +1,14 @@
+2022.04.08 20:11:47 INFO  tracing is disabled for protocol LSP, to enable tracing of incoming and outgoing JSON messages create an empty file at c:\Users\yuqin\Desktop\2022spring_coursework\hello-world\.metals\lsp.trace.json or C:\Users\yuqin\AppData\Local\scalameta\metals\cache\lsp.trace.json
+2022.04.08 20:11:48 INFO  logging to file C:\Users\yuqin\Desktop\2022spring_coursework\hello-world\.metals\metals.log
+2022.04.08 20:11:48 INFO  Started: Metals version 0.11.2 in workspace 'C:\Users\yuqin\Desktop\2022spring_coursework\hello-world' for client Visual Studio Code 1.65.2.
+2022.04.08 20:11:48 INFO  Parse release: 1.8.0_321
+2022.04.08 20:11:48 INFO  time: initialize in 0.66s
+2022.04.08 20:11:49 WARN  Build server is not auto-connectable.
+2022.04.08 20:11:52 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\hello-world\src\main\scala\Main.scala
+2022.04.08 20:11:53 INFO  no build target found for C:\Users\yuqin\Desktop\2022spring_coursework\hello-world\src\main\scala\Main.scala. Using presentation compiler with project's scala-library version: 3.1.1
+2022.04.08 20:11:54 INFO  time: code lens generation in 1.74s
+2022.04.08 20:12:03 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\hello-world\build.sbt
+2022.04.08 20:12:07 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\hello-world\src\main\scala\Main.scala
+Apr 08, 2022 8:12:08 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+2022.04.08 20:12:16 INFO  shutting down Metals

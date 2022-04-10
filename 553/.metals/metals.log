@@ -1,0 +1,52 @@
+2022.04.08 15:25:37 INFO  tracing is disabled for protocol LSP, to enable tracing of incoming and outgoing JSON messages create an empty file at c:\Users\yuqin\Desktop\2022spring_coursework\553\.metals\lsp.trace.json or C:\Users\yuqin\AppData\Local\scalameta\metals\cache\lsp.trace.json
+2022.04.08 15:25:38 INFO  logging to file C:\Users\yuqin\Desktop\2022spring_coursework\553\.metals\metals.log
+2022.04.08 15:25:38 INFO  Started: Metals version 0.11.2 in workspace 'C:\Users\yuqin\Desktop\2022spring_coursework\553' for client Visual Studio Code 1.65.2.
+2022.04.08 15:25:38 INFO  Parse release: 1.8.0_321
+2022.04.08 15:25:40 INFO  time: initialize in 1.98s
+2022.04.08 15:25:40 WARN  Build server is not auto-connectable.
+2022.04.08 15:25:40 WARN  no build tool detected in workspace 'C:\Users\yuqin\Desktop\2022spring_coursework\553'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. 
+2022.04.08 15:25:40 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\test\1.scala
+2022.04.08 15:25:45 INFO  no build target found for C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\test\1.scala. Using presentation compiler with project's scala-library version: 3.1.1
+2022.04.08 15:25:46 INFO  time: code lens generation in 5.43s
+2022.04.08 15:26:15 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\test\1.scala
+Apr 08, 2022 3:31:29 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+Apr 08, 2022 3:32:27 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+Apr 08, 2022 3:33:00 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+Apr 08, 2022 3:33:05 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+Apr 08, 2022 3:33:10 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+Apr 08, 2022 3:33:16 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+2022.04.08 15:38:58 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\task1.scala
+Apr 08, 2022 3:46:21 PM org.eclipse.lsp4j.jsonrpc.RemoteEndpoint handleCancellation
+WARNING: Unmatched cancel notification for request id 712
+Apr 08, 2022 3:46:54 PM org.eclipse.lsp4j.jsonrpc.RemoteEndpoint handleCancellation
+WARNING: Unmatched cancel notification for request id 807
+2022.04.08 15:48:18 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\task1.scala
+2022.04.08 15:48:47 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\task1.scala
+Apr 08, 2022 7:04:40 PM org.eclipse.lsp4j.jsonrpc.RemoteEndpoint handleCancellation
+WARNING: Unmatched cancel notification for request id 1260
+2022.04.08 19:06:43 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\task1.scala
+2022.04.08 20:07:56 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\task1.scala
+2022.04.08 20:09:47 WARN  no build target for: C:\Users\yuqin\Desktop\2022spring_coursework\553\homework\5\task1.scala
+2022.04.08 20:11:37 INFO  
+2022.04.08 20:11:37 INFO  Template applied in C:\Users\yuqin\Desktop\2022spring_coursework\.\hello-world
+2022.04.08 20:11:37 INFO  
+2022.04.08 20:11:37 INFO  time: ran 'giter8.Giter8' in 5.15s
+2022.04.09 17:52:55 INFO  shutting down Metals
+2022.04.09 19:08:06 INFO  tracing is disabled for protocol LSP, to enable tracing of incoming and outgoing JSON messages create an empty file at c:\Users\yuqin\Desktop\2022spring_coursework\553\.metals\lsp.trace.json or C:\Users\yuqin\AppData\Local\scalameta\metals\cache\lsp.trace.json
+2022.04.09 19:08:06 INFO  logging to file C:\Users\yuqin\Desktop\2022spring_coursework\553\.metals\metals.log
+2022.04.09 19:08:06 INFO  Started: Metals version 0.11.2 in workspace 'C:\Users\yuqin\Desktop\2022spring_coursework\553' for client Visual Studio Code 1.66.1.
+2022.04.09 19:08:06 INFO  Parse release: 1.8.0_321
+2022.04.09 19:08:07 INFO  time: initialize in 0.73s
+2022.04.09 19:08:07 WARN  Build server is not auto-connectable.
+2022.04.09 19:08:07 WARN  no build tool detected in workspace 'C:\Users\yuqin\Desktop\2022spring_coursework\553'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. 
+Apr 09, 2022 7:08:20 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+Apr 09, 2022 7:08:20 PM org.eclipse.lsp4j.jsonrpc.services.GenericEndpoint notify
+INFO: Unsupported notification method: $/setTrace
+2022.04.10 11:05:12 INFO  shutting down Metals
