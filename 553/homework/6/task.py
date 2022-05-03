@@ -56,7 +56,7 @@ class BFR:
         cluster_points_list = self.count_cluster_point_num()
         RS_cluster_points_id = []
         for label, points_id in cluster_points_list.items():
-            if len(points_id) < 20:
+            if len(points_id) < 10:
                 RS_cluster_points_id += points_id # add point id in label (list)
                 for p_id in points_id: # add all point features
                     self.RS.append(data0[p_id])
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         data0 = dataLoader.load_20_percent(0)
         # print('data0', data0[0], ' , num data0', len(data0))
         # Step 2. Run K-Means (e.g., from sklearn) with a large K (e.g., 5 times of the number of the input clusters)
-        k_means = KMeans(n_clusters=n_cluster * 25).fit(data0)
+        k_means = KMeans(n_clusters=n_cluster * 5).fit(data0)
         print(k_means, 'labels: ', k_means.labels_)
         # Step 3. move all the clusters that contain only one point to RS
         bfr = BFR()
