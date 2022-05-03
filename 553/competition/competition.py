@@ -7,6 +7,7 @@ import numpy as np
 import xgboost
 import json
 import math
+from collections import defaultdict
 
 
 fold_path = sys.argv[1]
@@ -147,25 +148,21 @@ def generate_feature(rdd, type='train'):
 def find_feature(row):
     user_id = row[0]
     business_id = row[1]
-    user_average_star, user_review_count, business_average_star, business_review_count \
-        = np.NAN, np.NAN, np.NAN, np.NAN
-    user_useful, user_fans = np.NAN, np.NAN
+    # business_average_star, business_review_count = np.NAN, np.NAN
     # user_var, business_var = np.NAN, np.NAN
+    business_features = [np.NAN] * (len(business_digital_features_name) + len(business_attribute_name))
     user_features = [np.NAN] * len(user_digital_feature_name_list)
     if user_id in user_id_feature_map.keys():
         user_features = user_id_feature_map[user_id]
-        # user_average_star = user_id_feature_map[user_id][0]
-        # user_review_count = user_id_feature_map[user_id][1]
-        # user_useful = user_id_feature_map[user_id][2]
-        # user_fans = user_id_feature_map[user_id][3]
     if business_id in business_id_feature_map.keys():
-        business_average_star = business_id_feature_map[business_id][0]
-        business_review_count = business_id_feature_map[business_id][1]
+        business_features = business_id_feature_map[business_id]
+        # business_average_star = business_id_feature_map[business_id][0]
+        # business_review_count = business_id_feature_map[business_id][1]
     # if user_id in user_var_dict.keys():
     #     user_var = user_var_dict[user_id]
     # if business_id in business_var_dict.keys():
     #     business_var = business_var_dict[business_id]
-    feature_list = [business_average_star, business_review_count] + user_features
+    feature_list = business_features + user_features
     return feature_list
 
 
@@ -181,6 +178,65 @@ def count_variance(row):
         var += (i - avg) ** 2
     var /= count
     return (row[0], var)
+
+
+def is_json(str):
+    try:
+        json.loads(str)
+    except ValueError:
+        return False
+    return True
+
+
+def find_attributes():
+    for x in business_feature_list:
+        attributes = x['attributes']
+        # print(type(attributes))
+        if attributes:
+            for k, v in attributes.items():
+                v = v.replace("'", '"').replace('False', 'false').replace('True', 'true')
+                if is_json(v) and isinstance(json.loads(v), dict):
+                    dic = json.loads(v)
+                    # print(dic, type(dic))
+                    for k, v in dic.items():
+                        if isinstance(v, str):
+                            business_attribute_dict[k].add(v)
+                else:
+                    business_attribute_dict[k].add(v)
+
+
+def encode_val(k, v):
+    value_list = sorted(list(business_attribute_dict[k]))
+    try:
+        en_k = business_attribute_name.index(k)
+    except ValueError:
+        en_k = -1
+    try:
+        en_v = value_list.index(v)
+    except ValueError:
+        en_v = -1
+    return en_k, en_v
+
+
+def encode_attributes(x):
+    attributes = x['attributes']
+    attributes_list = [np.NAN] * len(business_attribute_name)
+    if attributes:
+        for k, v in attributes.items():
+            v = v.replace("'", '"').replace('False', 'false').replace('True', 'true')
+            if is_json(v) and isinstance(json.loads(v), dict):
+                dic = json.loads(v)
+                for k, v in dic.items():
+                    if isinstance(v, str):
+                        en_k, en_v = encode_val(k, v)
+                        if en_k != -1:
+                            attributes_list[en_k] = en_v
+            else:
+                en_k, en_v = encode_val(k, v)
+                if en_k != -1:
+                    attributes_list[en_k] = en_v
+    feature_list = [float(x[r]) if x[r] is not None else np.NAN for r in business_digital_features_name]
+    return feature_list + attributes_list
 
 
 def compute_metrics():
@@ -214,13 +270,14 @@ def compute_metrics():
     return RMSE
 
 
-
-
 if __name__ == '__main__':
     description = 'The origin RMSE on valid data is 0.983970' + '\n' + \
-                  '1. Use more user digital features' + '\n' + \
-                  '2. Encode more non-digital features (text)' + '\n' + \
-                  '3. Try neural network' + '\n'
+                  '1. Use more user digital features, RMSE decrease to 0.983621' + '\n' + \
+                  '2. Use formula final_scores[i] = a * item_based + (1 - a) * model_based to combine, ' + '\n' + \
+                  '   in which a = math.tanh(neighbor_size / k), train model and find the best k to combine model, ' + '\n' + \
+                  '   RMSE decrease to 0.983612' + '\n' + \
+                  '3. Most of business features are text format, encode them to digital or bool (01), ' + '\n' + \
+                  '   RMSE decrease to 0.980302' + '\n'
     print('Method Description:')
     print(description)
 
@@ -243,8 +300,14 @@ if __name__ == '__main__':
     user_var_dict = user_var.collectAsMap()
     business_var_dict = business_var.collectAsMap()
 
+    business_attribute_dict = defaultdict(set) # use this dict to encode text business attributes
+    business_feature_list = sc.textFile(fold_path + "business.json").map(lambda x: json.loads(x)).collect()
+    # business_attribute_dict: {'BikeParking': {'true', 'false'}, ...}  key and all possible values
+    find_attributes()
+    business_attribute_name = sorted(list(business_attribute_dict.keys()))
+    business_digital_features_name = ["latitude", "longitude", "stars", "review_count", "is_open"]
     business_feature_rdd = sc.textFile(fold_path + "business.json").map(lambda x: json.loads(x)).map(
-        lambda x: (x["business_id"], (float(x["stars"]), float(x["review_count"])))).filter(
+        lambda x: (x["business_id"], encode_attributes(x))).filter(
         lambda x: x[0] in business_set or x[0] in business_val_set)
 
     user_digital_feature_name_list = ["review_count","useful","funny","cool","fans","average_stars",
@@ -257,6 +320,7 @@ if __name__ == '__main__':
         lambda x: (x["user_id"], [float(x[r]) for r in user_digital_feature_name_list]))\
         .filter(lambda x: x[0] in user_set or x[0] in user_val_set)
     # print(business_feature_rdd.first(), user_feature_rdd.first())
+    
     business_id_feature_map = business_feature_rdd.collectAsMap()
     user_id_feature_map = user_feature_rdd.collectAsMap()
 
@@ -301,7 +365,7 @@ if __name__ == '__main__':
             model_based = Y_pred[i]
             item_based = CL_prediction[i][2]
             neighbor_size = CL_prediction[i][3]
-            a = math.tanh(neighbor_size / 241)
+            a = math.tanh(neighbor_size / 371)
             final_scores[i] = a * item_based + (1 - a) * model_based
 
     RMSE = compute_metrics()
