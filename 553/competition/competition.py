@@ -277,7 +277,8 @@ if __name__ == '__main__':
                   '   in which a = math.tanh(neighbor_size / k), train model and find the best k to combine model, ' + '\n' + \
                   '   RMSE decrease to 0.983612' + '\n' + \
                   '3. Most of business features are text format, encode them to digital or bool (01), ' + '\n' + \
-                  '   RMSE decrease to 0.980302' + '\n'
+                  '   RMSE decrease to 0.980300' + '\n' + \
+                  '4. adjust xgboost parameters, RMSE decrease to 0.977952' + '\n'
     print('Method Description:')
     print(description)
 
@@ -326,7 +327,10 @@ if __name__ == '__main__':
 
     X_train, Y_train = generate_feature(train_rdd)
     # print(np.shape(X_train))
-    model = xgboost.XGBRegressor(n_estimators=50, random_state=233, max_depth=7)
+    other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
+                    'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 0, 'reg_lambda': 1}
+    model = xgboost.XGBRegressor(**other_params)
+    # model = xgboost.XGBRegressor(n_estimators=50, random_state=233, max_depth=7)
     model.fit(X_train, Y_train)
     val_list = val_rdd.collect()
     X_pred = generate_feature(val_rdd, type='test')
@@ -365,7 +369,7 @@ if __name__ == '__main__':
             model_based = Y_pred[i]
             item_based = CL_prediction[i][2]
             neighbor_size = CL_prediction[i][3]
-            a = math.tanh(neighbor_size / 371)
+            a = math.tanh(neighbor_size / 391)
             final_scores[i] = a * item_based + (1 - a) * model_based
 
     RMSE = compute_metrics()
