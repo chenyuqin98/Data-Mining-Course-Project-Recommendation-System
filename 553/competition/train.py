@@ -8,9 +8,12 @@ import xgboost
 import json
 import math
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 from collections import defaultdict
+import warnings
 
+warnings.filterwarnings('ignore')
 
 fold_path = sys.argv[1]
 test_file_path = sys.argv[2]
@@ -324,6 +327,9 @@ if __name__ == '__main__':
     business_id_feature_map = business_feature_rdd.collectAsMap()
     user_id_feature_map = user_feature_rdd.collectAsMap()
 
+    X_train, Y_train = generate_feature(train_rdd)
+    X_pred = generate_feature(val_rdd, type='test')
+
     if 0==0: # content-based model
         # using all-rating average to normalize
         # eg: {'3MntE_HWbNNoyiLGxywjYA': 3.4}
@@ -349,59 +355,59 @@ if __name__ == '__main__':
 
         CL_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
 
+    # cv_params = {'n_estimators': [400, 500, 600, 700, 800]}
+    # 参数的最佳取值：{'n_estimators': 400}
+    # 最佳模型得分:-0.9633645238652156
 
-    X_train, Y_train = generate_feature(train_rdd)
-    # print(np.shape(X_train))
+    # cv_params = {'n_estimators': range(50, 450, 50)}
+    # 参数的最佳取值：{'n_estimators': 350}
+    # 最佳模型得分: -0.9633490587587787
 
-    best_RSME = 10
-    best_n_estimator = 50
-    best_k = 0
-    RSME_dic = defaultdict(int)
-    X_pred = generate_feature(val_rdd, type='test')
-
-    cv_params = {'n_estimators': [400, 500, 600, 700, 800]}
+    cv_params = {'max_depth': [3, 4, 5, 6, 7, 8, 9, 10], 'min_child_weight': [1, 2, 3, 4, 5, 6]}
     other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
-                    'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 0, 'reg_lambda': 1}
+                    'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 1, 'reg_lambda': 0}
     model = xgboost.XGBRegressor(**other_params)
-    optimized_GBM = GridSearchCV(estimator=model, param_grid=cv_params, scoring='r2', cv=5, verbose=1, n_jobs=10)
+    # from sklearn.metrics import make_scorer
+    # mse = make_scorer(mean_squared_error, greater_is_better=False)
+    # optimized_GBM = GridSearchCV(estimator=model, param_grid=cv_params, scoring=mse,
+    #                              cv=3, verbose=2, n_jobs=-1)
+
+    optimized_GBM = GridSearchCV(estimator=model, param_grid=cv_params, scoring='neg_mean_squared_error',
+                                 cv=3, verbose=2)
     optimized_GBM.fit(X_train, Y_train)
     print('每轮迭代运行结果:{0}'.format(optimized_GBM.cv_results_))
     print('参数的最佳取值：{0}'.format(optimized_GBM.best_params_))
     print('最佳模型得分:{0}'.format(optimized_GBM.best_score_))
 
 
-    # for estimator in tqdm(range(10, 100, 10)):
-    # other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
-    #                 'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 0, 'reg_lambda': 1}
-    # model = xgboost.XGBRegressor(**other_params)
-    #     model = xgboost.XGBRegressor(n_estimators=estimator, random_state=233, max_depth=7)
-    #     model.fit(X_train, Y_train)
-    #     val_list = val_rdd.collect()
-    #     Y_pred = model.predict(X_pred)
-    #     # print(train_rdd.first())
-    #
-    #     # combine two algorithms
-    #     if 1==1:
-    #         # count final scores
-    #         final_scores = [0] * len(Y_pred)
-    #         RSME_li = []
-    #         for k in range(390, 392, 2):
-    #             for i in range(len(Y_pred)):
-    #                 model_based = Y_pred[i]
-    #                 item_based = CL_prediction[i][2]
-    #                 neighbor_size = CL_prediction[i][3]
-    #                 a = math.tanh(neighbor_size / k)
-    #                 final_scores[i] = a * item_based + (1 - a) * model_based
-    #             currRSME = compute_metrics()
-    #             RSME_li.append(currRSME)
-    #             if currRSME < best_RSME:
-    #                 best_k = k
-    #                 best_RSME = currRSME
-    #                 best_n_estimator = estimator
-    #     RSME_dic[(estimator, best_k)] = best_RSME
-    # print(best_n_estimator, best_k, best_RSME)
+    # best parameters:
+    other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
+                    'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 0, 'reg_lambda': 1}
+    model = xgboost.XGBRegressor(**other_params)
+    model.fit(X_train, Y_train)
+    val_list = val_rdd.collect()
+    Y_pred = model.predict(X_pred)
 
-    # RMSE = compute_metrics()
+    # combine two algorithms
+    if 3 == 3:
+        best_RSME = 10
+        best_k = 0
+        # count final scores
+        final_scores = [0] * len(Y_pred)
+        RSME_li = []
+        for k in tqdm(range(300, 500, 5)):
+            for i in range(len(Y_pred)):
+                model_based = Y_pred[i]
+                item_based = CL_prediction[i][2]
+                neighbor_size = CL_prediction[i][3]
+                a = math.tanh(neighbor_size / k)
+                final_scores[i] = a * item_based + (1 - a) * model_based
+            currRSME = compute_metrics()
+            RSME_li.append(currRSME)
+            if currRSME < best_RSME:
+                best_k = k
+                best_RSME = currRSME
+    print('best k to combine: ', best_k, best_RSME)
 
     # with open(output_file_path, 'w+') as f:
     #     f.writelines('user_id, business_id, prediction' + '\n')
