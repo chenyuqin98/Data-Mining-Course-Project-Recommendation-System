@@ -155,8 +155,8 @@ def find_feature(row):
     business_id = row[1]
     # business_average_star, business_review_count = np.NAN, np.NAN
     # user_var, business_var = np.NAN, np.NAN
-    business_features = [np.NAN] * (len(business_digital_features_name) + len(business_attribute_name))
-    user_features = [np.NAN] * len(user_digital_feature_name_list)
+    business_features = [np.NAN] * (len(business_numerical_features_name) + len(business_attribute_name))
+    user_features = [np.NAN] * len(user_numerical_feature_name_list)
     if user_id in user_id_feature_map.keys():
         user_features = user_id_feature_map[user_id]
     if business_id in business_id_feature_map.keys():
@@ -208,9 +208,15 @@ def find_attributes():
                             business_attribute_dict[k].add(v)
                 else:
                     business_attribute_dict[k].add(v)
+        if x['city']:
+            business_attribute_dict['city'].add(x['city'])
+        if x['state']:
+            business_attribute_dict['state'].add(x['state'])
+        if x['postal_code']:
+            business_attribute_dict['postal_code'].add(x['postal_code'])
 
 
-def encode_val(k, v):
+def encode_kv(k, v):
     value_list = sorted(list(business_attribute_dict[k]))
     try:
         en_k = business_attribute_name.index(k)
@@ -224,8 +230,8 @@ def encode_val(k, v):
 
 
 def encode_attributes(x):
-    attributes = x['attributes']
     attributes_list = [np.NAN] * len(business_attribute_name)
+    attributes = x['attributes']
     if attributes:
         for k, v in attributes.items():
             v = v.replace("'", '"').replace('False', 'false').replace('True', 'true')
@@ -233,14 +239,24 @@ def encode_attributes(x):
                 dic = json.loads(v)
                 for k, v in dic.items():
                     if isinstance(v, str):
-                        en_k, en_v = encode_val(k, v)
+                        en_k, en_v = encode_kv(k, v)
                         if en_k != -1:
                             attributes_list[en_k] = en_v
             else:
-                en_k, en_v = encode_val(k, v)
+                en_k, en_v = encode_kv(k, v)
                 if en_k != -1:
                     attributes_list[en_k] = en_v
-    feature_list = [float(x[r]) if x[r] is not None else np.NAN for r in business_digital_features_name]
+    if x['city']:
+        en_k, en_v = encode_kv('city', x['city'])
+        attributes_list[en_k] = en_v
+    if x['state']:
+        en_k, en_v = encode_kv('state', x['state'])
+        attributes_list[en_k] = en_v
+    if x['postal_code']:
+        en_k, en_v = encode_kv('postal_code', x['postal_code'])
+        attributes_list[en_k] = en_v
+    feature_list = [float(x[r]) if x[r] is not None else np.NAN for r in business_numerical_features_name]
+
     return feature_list + attributes_list
 
 
@@ -276,12 +292,14 @@ def compute_metrics():
 
 if __name__ == '__main__':
     description = 'The origin RMSE on valid data is 0.983970' + '\n' + \
-                  '1. Use more user digital features, RMSE decrease to 0.983621' + '\n' + \
+                  '1. Use more user numerical features, RMSE decrease to 0.983621' + '\n' + \
                   '2. Use formula final_scores[i] = a * item_based + (1 - a) * model_based to combine, ' + '\n' + \
                   '   in which a = math.tanh(neighbor_size / k), train model and find the best k to combine model, ' + '\n' + \
                   '   RMSE decrease to 0.983612' + '\n' + \
-                  '3. Most of business features are text format, encode them to digital or bool (01), ' + '\n' + \
-                  '   RMSE decrease to 0.980302' + '\n'
+                  '3. Most of business features are text format, encode them to numerical or bool (01), ' + '\n' + \
+                  '   RMSE decrease to 0.980300' + '\n' + \
+                  '4. Tune xgboost parameters, RMSE decrease to 0.977665' + '\n' + \
+                  '5. add business location features' + '\n'
     print('Method Description:')
     print(description)
 
@@ -304,26 +322,28 @@ if __name__ == '__main__':
     user_var_dict = user_var.collectAsMap()
     business_var_dict = business_var.collectAsMap()
 
-    business_attribute_dict = defaultdict(set) # use this dict to encode text business attributes
+    # use this dict to encode text business attributes and location information (postcode...)
+    business_attribute_dict = defaultdict(set)
     business_feature_list = sc.textFile(fold_path + "business.json").map(lambda x: json.loads(x)).collect()
     # business_attribute_dict: {'BikeParking': {'true', 'false'}, ...}  key and all possible values
     find_attributes()
     business_attribute_name = sorted(list(business_attribute_dict.keys()))
-    business_digital_features_name = ["latitude", "longitude", "stars", "review_count", "is_open"]
+    business_numerical_features_name = ["latitude", "longitude", "stars", "review_count", "is_open"]
     business_feature_rdd = sc.textFile(fold_path + "business.json").map(lambda x: json.loads(x)).map(
         lambda x: (x["business_id"], encode_attributes(x))).filter(
         lambda x: x[0] in business_set or x[0] in business_val_set)
 
-    user_digital_feature_name_list = ["review_count","useful","funny","cool","fans","average_stars",
+    user_numerical_feature_name_list = ["review_count","useful","funny","cool","fans","average_stars",
                                       "compliment_hot","compliment_more","compliment_profile",
                                       "compliment_cute","compliment_list","compliment_note","compliment_plain",
                                       "compliment_cool","compliment_funny","compliment_writer","compliment_photos"]
     # eg: ["yelping_since":"2015-09-28","friends":"None","elite":"None",]
     user_text_feature_name_list = ["yelping_since","friends","elite"]
     user_feature_rdd = sc.textFile(fold_path + "user.json").map(lambda x: json.loads(x)).map(
-        lambda x: (x["user_id"], [float(x[r]) for r in user_digital_feature_name_list]))\
+        lambda x: (x["user_id"], [float(x[r]) for r in user_numerical_feature_name_list]))\
         .filter(lambda x: x[0] in user_set or x[0] in user_val_set)
     # print(business_feature_rdd.first(), user_feature_rdd.first())
+
     business_id_feature_map = business_feature_rdd.collectAsMap()
     user_id_feature_map = user_feature_rdd.collectAsMap()
 
@@ -356,14 +376,21 @@ if __name__ == '__main__':
         CL_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
 
     # cv_params = {'n_estimators': [400, 500, 600, 700, 800]}
-    # 参数的最佳取值：{'n_estimators': 400}
+    # 参数的最佳取值：{'n_estimators': 500}
     # 最佳模型得分:-0.9633645238652156
 
-    # cv_params = {'n_estimators': range(50, 450, 50)}
-    # 参数的最佳取值：{'n_estimators': 350}
-    # 最佳模型得分: -0.9633490587587787
+    # cv_params = {'max_depth': [3, 4, 5, 6, 7, 8, 9, 10]}
+    # 参数的最佳取值：{'max_depth': 5}
+    # 最佳模型得分: 0.24128261333847753
 
-    cv_params = {'max_depth': [3, 4, 5, 6, 7, 8, 9, 10], 'min_child_weight': [1, 2, 3, 4, 5, 6]}
+    # cv_params = {'min_child_weight': [1, 2, 3, 4, 5, 6]}
+    # 参数的最佳取值：{'min_child_weight': 1}
+    # 最佳模型得分: 0.24128261333847753
+
+    cv_params = {'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]}
+    # cv_params = {'subsample': [0.6, 0.7, 0.8, 0.9], 'colsample_bytree': [0.6, 0.7, 0.8, 0.9]}
+    # cv_params = {'reg_alpha': [0.05, 0.1, 1, 2, 3], 'reg_lambda': [0.05, 0.1, 1, 2, 3]}
+
     other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
                     'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 1, 'reg_lambda': 0}
     model = xgboost.XGBRegressor(**other_params)
@@ -372,7 +399,7 @@ if __name__ == '__main__':
     # optimized_GBM = GridSearchCV(estimator=model, param_grid=cv_params, scoring=mse,
     #                              cv=3, verbose=2, n_jobs=-1)
 
-    optimized_GBM = GridSearchCV(estimator=model, param_grid=cv_params, scoring='neg_mean_squared_error',
+    optimized_GBM = GridSearchCV(estimator=model, param_grid=cv_params, scoring='r2',
                                  cv=3, verbose=2)
     optimized_GBM.fit(X_train, Y_train)
     print('每轮迭代运行结果:{0}'.format(optimized_GBM.cv_results_))
@@ -395,7 +422,7 @@ if __name__ == '__main__':
         # count final scores
         final_scores = [0] * len(Y_pred)
         RSME_li = []
-        for k in tqdm(range(300, 500, 5)):
+        for k in tqdm(range(20000, 30000, 1000)):
             for i in range(len(Y_pred)):
                 model_based = Y_pred[i]
                 item_based = CL_prediction[i][2]

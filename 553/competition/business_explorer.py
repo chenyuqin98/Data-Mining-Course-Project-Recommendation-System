@@ -38,11 +38,13 @@ def find_attributes():
                             distinct_attribute[k].add(v)
                 else:
                     distinct_attribute[k].add(v)
+        postal_code = x['postal_code']
+        if postal_code:
+            distinct_attribute['postal_code'].add(postal_code)
 
 
 if __name__ == '__main__':
     distinct_attribute = defaultdict(set)
-    distinct_bool_attribute = set()
     sc = SparkContext.getOrCreate()
     sc.setLogLevel('ERROR')
     # business_feature = sc.textFile("data/business.json").map(lambda x: json.loads(x)).\
@@ -50,8 +52,6 @@ if __name__ == '__main__':
     business_feature = sc.textFile("data/business.json").map(lambda x: json.loads(x))
     business_feature_list = business_feature.collect()
     business_digital_features_name_list = ["latitude", "longitude", "stars", "review_count", "is_open"]
-    business_bool_features_name_list = []
-    business_text_features_name_list = []
     if 1 == 1:
         a = {"business_id": "Apn5Q_b6Nz61Tq4XzPdf9A", "name": "Minhas Micro Brewery", "neighborhood": "",
          "address": "1314 44 Avenue NE", "city": "Calgary", "state": "AB", "postal_code": "T2E 6L6",
@@ -79,8 +79,7 @@ if __name__ == '__main__':
     # print(business_feature.collect()[0])
 
     find_attributes()
-    print(distinct_attribute, len(distinct_attribute))
-    print(distinct_bool_attribute, len(distinct_bool_attribute))
+    print(distinct_attribute, len(distinct_attribute), len(distinct_attribute['post_code']))
 
     # print('test---------')
     # s = "{'garage': False, 'street': True, 'validated': False, 'lot': True, 'valet': False}"
