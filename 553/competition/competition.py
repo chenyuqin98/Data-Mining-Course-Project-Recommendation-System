@@ -435,15 +435,15 @@ if __name__ == '__main__':
         # item similarity dic to avoid repeat and thus accelerate
         item_similarity_dic = {}
 
-        CL_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
+        CF_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
 
         # count final scores
         final_scores = [0] * len(Y_pred)
         for i in range(len(Y_pred)):
             model_based = Y_pred[i]
-            item_based = CL_prediction[i][2]
-            neighbor_size = CL_prediction[i][3]
-            a = math.tanh(neighbor_size / 500)
+            item_based = CF_prediction[i][2]
+            neighbor_size = CF_prediction[i][3]
+            a = math.tanh(neighbor_size / 25000)
             final_scores[i] = a * item_based + (1 - a) * model_based
 
     RMSE = compute_metrics()

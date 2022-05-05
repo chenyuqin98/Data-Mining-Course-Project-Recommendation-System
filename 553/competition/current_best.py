@@ -45,7 +45,7 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
         if len(user_items) > 0:  # if this has comment on other items
             avg = count_user_average_star(user_items)
             return (user_id, business_id, avg, 0)
-        return (user_id, business_id, 3.75, 0)  # predict by all users' average
+        return (user_id, business_id, 3.75, 0, [-1] * topN)  # predict by all users' average
 
     # count similarity
     ratings, similarities = [], []
@@ -59,10 +59,12 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
     neighbor_size = len(similarities)
     if similarities == [] or len(similarities) < topN:
         avg = count_user_average_star(user_items)
-        return (user_id, business_id, avg, neighbor_size)
+        similarity_feature = sorted(similarities + [-1] * (len(similarities) - topN), reverse=True)
+        return (user_id, business_id, avg, neighbor_size, similarity_feature)
 
     # chose top N similar items to predict
-    similarity_rating = sorted(tuple(zip(similarities, ratings)), key=lambda x: x[0])[:topN]
+    similarity_rating = sorted(tuple(zip(similarities, ratings)), key=lambda x: x[0], reverse=True)[:topN]
+    similarity_feature = sorted(similarities)[:topN]
 
     numerator, denominator = 0, 0
     for i in similarity_rating:
@@ -72,9 +74,9 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
         denominator += abs(i[0])
     if numerator <= 25:
         avg = count_user_average_star(user_items)
-        return (user_id, business_id, avg, neighbor_size)
+        return (user_id, business_id, avg, neighbor_size, similarity_feature)
     else:
-        return (user_id, business_id, numerator / denominator, neighbor_size)
+        return (user_id, business_id, numerator / denominator, neighbor_size, similarity_feature)
 
 
 def count_pearson_similarity(item1, item2):
@@ -336,6 +338,7 @@ def compute_metrics():
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     description = 'The origin RMSE on valid data is 0.983970' + '\n' + \
                   '1. Use more user numerical features, RMSE decrease to 0.983621' + '\n' + \
                   '2. Use formula final_scores[i] = a * item_based + (1 - a) * model_based to combine, ' + '\n' + \
@@ -346,12 +349,10 @@ if __name__ == '__main__':
                   '4. Tune xgboost parameters (500 estimators, k = 25000), RMSE decrease to 0.977665' + '\n' + \
                   '5. Add business location features, RMSE 0.977643' + '\n' + \
                   '6. Encode business most frequent 3 categories features, RMSE 0.977747' + '\n' + \
-                  '7. Encode user features: friends, elite, yelp_since, RMSE 0.977596 (local 0.977601)' + '\n' + \
+                  '7. Encode user features: friends, elite, yelp_since, RMSE 0.977522 (local 0.977601)' + '\n' + \
                   '8. Update combine method' + '\n'
     print('Method Description:')
     print(description)
-
-    start_time = time.time()
 
     sc = SparkContext.getOrCreate()
     sc.setLogLevel('ERROR')
