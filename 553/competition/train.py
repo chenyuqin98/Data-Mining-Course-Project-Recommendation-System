@@ -11,9 +11,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 from collections import defaultdict
-import warnings
-
-warnings.filterwarnings('ignore')
+from datetime import datetime
 
 fold_path = sys.argv[1]
 test_file_path = sys.argv[2]
@@ -23,7 +21,7 @@ topN = 5
 
 def read_csv(file_path, type):
     data = sc.textFile(file_path)
-    data.count() # pyspark version problem
+    data.count()  # pyspark version problem
     data_header = data.first()
     data = data.filter(lambda r: r != data_header)
     if type == 'train':
@@ -50,7 +48,7 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
         if len(user_items) > 0:  # if this has comment on other items
             avg = count_user_average_star(user_items)
             return (user_id, business_id, avg, 0)
-        return (user_id, business_id, 3.75, 0)  # predict by all users' average
+        return (user_id, business_id, 3.75, 0, [-1] * topN)  # predict by all users' average
 
     # count similarity
     ratings, similarities = [], []
@@ -64,10 +62,12 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
     neighbor_size = len(similarities)
     if similarities == [] or len(similarities) < topN:
         avg = count_user_average_star(user_items)
-        return (user_id, business_id, avg, neighbor_size)
+        similarity_feature = sorted(similarities + [-1] * (len(similarities) - topN), reverse=True)
+        return (user_id, business_id, avg, neighbor_size, similarity_feature)
 
     # chose top N similar items to predict
-    similarity_rating = sorted(tuple(zip(similarities, ratings)), key=lambda x: x[0])[:topN]
+    similarity_rating = sorted(tuple(zip(similarities, ratings)), key=lambda x: x[0], reverse=True)[:topN]
+    similarity_feature = sorted(similarities)[:topN]
 
     numerator, denominator = 0, 0
     for i in similarity_rating:
@@ -77,9 +77,9 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
         denominator += abs(i[0])
     if numerator <= 25:
         avg = count_user_average_star(user_items)
-        return (user_id, business_id, avg, neighbor_size)
+        return (user_id, business_id, avg, neighbor_size, similarity_feature)
     else:
-        return (user_id, business_id, numerator / denominator, neighbor_size)
+        return (user_id, business_id, numerator / denominator, neighbor_size, similarity_feature)
 
 
 def count_pearson_similarity(item1, item2):
@@ -144,7 +144,7 @@ def count_item_avg(row):
 
 def generate_feature(rdd, type='train'):
     X = np.array(rdd.map(lambda r: find_feature(r)).collect())
-    if type=='train':
+    if type == 'train':
         Y = np.array(rdd.map(lambda r: r[2]).collect())
         return X, Y
     return X
@@ -177,7 +177,7 @@ def count_variance(row):
     for i in item_list:
         sum += i
         count += 1
-    avg =  sum / count
+    avg = sum / count
     var = 0
     for i in item_list:
         var += (i - avg) ** 2
@@ -208,12 +208,14 @@ def find_attributes():
                             business_attribute_dict[k].add(v)
                 else:
                     business_attribute_dict[k].add(v)
-        # if x['city']:
-        #     business_attribute_dict['city'].add(x['city'])
-        # if x['state']:
-        #     business_attribute_dict['state'].add(x['state'])
+
+        if x['city']:
+            business_attribute_dict['city'].add(x['city'])
+        if x['state']:
+            business_attribute_dict['state'].add(x['state'])
         if x['postal_code']:
             business_attribute_dict['postal_code'].add(x['postal_code'])
+
         if x['categories']:
             categories_list = x['categories'].split(', ')
             for c in categories_list:
@@ -245,7 +247,7 @@ def encode_business_category(c):
     return (category_frequency, category_index)
 
 
-def encode_attributes(x):
+def encode_business_features(x):
     attributes_list = [np.NAN] * len(business_attribute_name)
     attributes = x['attributes']
     if attributes:
@@ -262,15 +264,17 @@ def encode_attributes(x):
                 en_k, en_v = encode_kv(k, v)
                 if en_k != -1:
                     attributes_list[en_k] = en_v
-    # if x['city']:
-    #     en_k, en_v = encode_kv('city', x['city'])
-    #     attributes_list[en_k] = en_v
-    # if x['state']:
-    #     en_k, en_v = encode_kv('state', x['state'])
-    #     attributes_list[en_k] = en_v
+
+    if x['city']:
+        en_k, en_v = encode_kv('city', x['city'])
+        attributes_list[en_k] = en_v
+    if x['state']:
+        en_k, en_v = encode_kv('state', x['state'])
+        attributes_list[en_k] = en_v
     if x['postal_code']:
         en_k, en_v = encode_kv('postal_code', x['postal_code'])
         attributes_list[en_k] = en_v
+
     category_list = [np.NAN] * 3
     if x['categories']:
         categories_list = x['categories'].split(', ')
@@ -282,6 +286,27 @@ def encode_attributes(x):
             category_list[k] = numerical_categories
     feature_list = [float(x[r]) if x[r] is not None else np.NAN for r in business_numerical_features_name]
     return feature_list + attributes_list + category_list
+    # return feature_list + attributes_list
+
+
+def encode_user_features(x):
+    user_numerical_features = [float(x[r]) for r in user_numerical_feature_name_list]
+
+    yelp_feature = np.NAN
+    if x['yelping_since']:
+        yelp_duration = datetime.now() - datetime.strptime(x['yelping_since'], '%Y-%m-%d')
+        yelp_feature = yelp_duration.total_seconds() / (365 * 24 * 3600)  # year
+        # print(yelp_duration, yelp_feature)
+
+    friends_num = 0
+    if x['friends'] and x['friends'] != 'None':
+        friends_num = len(x['friends'].split(','))
+
+    elite_num = 0
+    if x['elite'] and x['elite'] != 'None':
+        elite_num = len(x['elite'].split(','))
+
+    return user_numerical_features + [yelp_feature, friends_num, elite_num]
 
 
 def compute_metrics():
@@ -315,6 +340,7 @@ def compute_metrics():
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     description = 'The origin RMSE on valid data is 0.983970' + '\n' + \
                   '1. Use more user numerical features, RMSE decrease to 0.983621' + '\n' + \
                   '2. Use formula final_scores[i] = a * item_based + (1 - a) * model_based to combine, ' + '\n' + \
@@ -324,12 +350,11 @@ if __name__ == '__main__':
                   '   RMSE decrease to 0.980300' + '\n' + \
                   '4. Tune xgboost parameters (500 estimators, k = 25000), RMSE decrease to 0.977665' + '\n' + \
                   '5. Add business location features, RMSE 0.977643' + '\n' + \
-                  '6. Encode business most frequent 3 features' + '\n' + \
-                  '7. Encode user features: friends, elite, yelp_since' + '\n'
+                  '6. Encode business most frequent 3 categories features, RMSE 0.977747' + '\n' + \
+                  '7. Encode user features: friends, elite, yelp_since, RMSE 0.977596 (local 0.977601)' + '\n' + \
+                  '8. Update combine method' + '\n'
     print('Method Description:')
     print(description)
-
-    start_time = time.time()
 
     sc = SparkContext.getOrCreate()
     sc.setLogLevel('ERROR')
@@ -356,19 +381,20 @@ if __name__ == '__main__':
     # business_attribute_dict: {'BikeParking': {'true', 'false'}, ...}  key and all possible values
     find_attributes()
     business_attribute_name = sorted(list(business_attribute_dict.keys()))
+    category_words_list = sorted([k for k, v in category_words_num_dict.items()])
     business_numerical_features_name = ["latitude", "longitude", "stars", "review_count", "is_open"]
     business_feature_rdd = sc.textFile(fold_path + "business.json").map(lambda x: json.loads(x)).map(
-        lambda x: (x["business_id"], encode_attributes(x))).filter(
+        lambda x: (x["business_id"], encode_business_features(x))).filter(
         lambda x: x[0] in business_set or x[0] in business_val_set)
 
-    user_numerical_feature_name_list = ["review_count","useful","funny","cool","fans","average_stars",
-                                      "compliment_hot","compliment_more","compliment_profile",
-                                      "compliment_cute","compliment_list","compliment_note","compliment_plain",
-                                      "compliment_cool","compliment_funny","compliment_writer","compliment_photos"]
+    user_numerical_feature_name_list = ["review_count", "useful", "funny", "cool", "fans", "average_stars",
+                                        "compliment_hot", "compliment_more", "compliment_profile",
+                                        "compliment_cute", "compliment_list", "compliment_note", "compliment_plain",
+                                        "compliment_cool", "compliment_funny", "compliment_writer", "compliment_photos"]
     # eg: ["yelping_since":"2015-09-28","friends":"None","elite":"None",]
-    user_text_feature_name_list = ["yelping_since","friends","elite"]
+    user_text_feature_name_list = ["yelping_since", "friends", "elite"]
     user_feature_rdd = sc.textFile(fold_path + "user.json").map(lambda x: json.loads(x)).map(
-        lambda x: (x["user_id"], [float(x[r]) for r in user_numerical_feature_name_list]))\
+        lambda x: (x["user_id"], encode_user_features(x))) \
         .filter(lambda x: x[0] in user_set or x[0] in user_val_set)
     # print(business_feature_rdd.first(), user_feature_rdd.first())
 

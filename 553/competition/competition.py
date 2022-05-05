@@ -64,7 +64,7 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
 
     # chose top N similar items to predict
     similarity_rating = sorted(tuple(zip(similarities, ratings)), key=lambda x: x[0], reverse=True)[:topN]
-    similarity_feature = map(lambda x: x[0], similarity_rating)
+    similarity_feature = sorted(similarities)[:topN]
 
     numerator, denominator = 0, 0
     for i in similarity_rating:
