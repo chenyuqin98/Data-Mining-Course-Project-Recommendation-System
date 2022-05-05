@@ -351,7 +351,7 @@ if __name__ == '__main__':
                   '4. Tune xgboost parameters (500 estimators, k = 25000), RMSE decrease to 0.977665' + '\n' + \
                   '5. Add business location features, RMSE 0.977643' + '\n' + \
                   '6. Encode business most frequent 3 categories features, RMSE 0.977747' + '\n' + \
-                  '7. Encode user features: friends, elite, yelp_since, RMSE 0.977596 (local 0.977601)' + '\n' + \
+                  '7. Encode user features: friends, elite, yelp_since, RMSE 0.977522 (local 0.977601)' + '\n' + \
                   '8. Update combine method' + '\n'
     print('Method Description:')
     print(description)
@@ -376,7 +376,6 @@ if __name__ == '__main__':
     # use this dict to encode text business attributes and location information (postcode...)
     business_attribute_dict = defaultdict(set)
     category_words_num_dict = defaultdict(int)
-    category_words_list = sorted([k for k, v in category_words_num_dict.items()])
     business_feature_list = sc.textFile(fold_path + "business.json").map(lambda x: json.loads(x)).collect()
     # business_attribute_dict: {'BikeParking': {'true', 'false'}, ...}  key and all possible values
     find_attributes()

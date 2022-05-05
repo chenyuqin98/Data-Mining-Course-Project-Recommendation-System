@@ -44,14 +44,14 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
     if business_id not in item_user_dict.keys():
         if len(user_items) > 0:  # if this has comment on other items
             avg = count_user_average_star(user_items)
-            return (user_id, business_id, avg, 0)
+            return (user_id, business_id, avg, 0, [-1] * topN)
         return (user_id, business_id, 3.75, 0, [-1] * topN)  # predict by all users' average
 
     # count similarity
     ratings, similarities = [], []
     for i in range(len(user_items)):
         similar = count_pearson_similarity(business_id, user_items[i][0])
-        if similar > 0.5:
+        if similar > 0.5 and user_items[i][0] != business_id: # ensure not record itself
             ratings.append(user_items[i][1])
             similarities.append(similar)
 
@@ -59,12 +59,12 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
     neighbor_size = len(similarities)
     if similarities == [] or len(similarities) < topN:
         avg = count_user_average_star(user_items)
-        similarity_feature = sorted(similarities + [-1] * (len(similarities) - topN), reverse=True)
+        similarity_feature = sorted(similarities + [-1] * (topN - len(similarities)), reverse=True)
         return (user_id, business_id, avg, neighbor_size, similarity_feature)
 
     # chose top N similar items to predict
     similarity_rating = sorted(tuple(zip(similarities, ratings)), key=lambda x: x[0], reverse=True)[:topN]
-    similarity_feature = sorted(similarities)[:topN]
+    similarity_feature = sorted(similarities, reverse=True)[:topN]
 
     numerator, denominator = 0, 0
     for i in similarity_rating:
@@ -337,6 +337,21 @@ def compute_metrics():
     return RMSE
 
 
+def judge_which_model_is_better():
+    # Y_train_pred, Y_train, CF_train_pred
+    CF_train_pred_rlt = list(map(lambda x: x[2], CF_train_pred))
+    print('truth: ', Y_train[:3], 'model-base model: ', Y_train_pred[:3], 'content-base model: ', CF_train_pred_rlt[:3])
+    better_model = [] # 0: content-based, 1: model-based
+    for i in range(len(Y_train)):
+        if (float(Y_train[i]) - float(CF_train_pred_rlt[i])) ** 2 < (float(Y_train[i]) - float(Y_train_pred[i])) ** 2:
+            # better_model.append([0, 1])
+            better_model.append(1) # CF is better
+        else:
+            # better_model.append([1, 0])
+            better_model.append(0) # model is better
+    return better_model
+
+
 if __name__ == '__main__':
     start_time = time.time()
     description = 'The origin RMSE on valid data is 0.983970' + '\n' + \
@@ -409,6 +424,8 @@ if __name__ == '__main__':
     X_pred = generate_feature(val_rdd, type='test')
     Y_pred = model.predict(X_pred)
     # print(train_rdd.first())
+    Y_train_pred = model.predict(X_train)
+    # print(Y_train[:3], Y_train_pred[:3])
 
     # combine two algorithms
     if 1 == 1:
@@ -438,14 +455,37 @@ if __name__ == '__main__':
         CF_train_pred = train_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
         CF_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
 
+        # new method to combine
+        # prepare features
+        combine_model_train_X = np.array(list(map(lambda x: [x[3]] + x[4], CF_train_pred)))
+        combine_model_pred_X = np.array(list(map(lambda x: [x[3]] + x[4], CF_prediction)))
+        combine_model_train_X = np.concatenate((combine_model_train_X, X_train), axis=1)
+        combine_model_pred_X = np.concatenate((combine_model_pred_X, X_pred), axis=1)
+        better_model = judge_which_model_is_better()
+        print('better_model: ', better_model[0], len(better_model))
+        print('combine_model input: ', combine_model_train_X[0], len(combine_model_train_X))
+
+        # build model
+        params = {'n_estimators': 200, 'max_depth': 12, 'objective': 'multi:softlog', 'num_class': 2,
+                  'lambda': 1,  'gamma': 0.1, 'subsample': 0.7}
+        # params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 0.8,
+        #           'colsample_bytree': 0.8, 'gamma': 0.1, 'reg_alpha': 1, 'objective': 'multi:softprob'}
+        dtrain = xgboost.DMatrix(combine_model_train_X, better_model)
+        combine_model = xgboost.train(params, dtrain)
+        better_model_pred = combine_model.predict(xgboost.DMatrix(combine_model_pred_X))
+        print(better_model_pred[:3])
+
         # count final scores
         final_scores = [0] * len(Y_pred)
         for i in range(len(Y_pred)):
             model_based = Y_pred[i]
             item_based = CF_prediction[i][2]
-            neighbor_size = CF_prediction[i][3]
-            a = math.tanh(neighbor_size / 25000)
-            final_scores[i] = a * item_based + (1 - a) * model_based
+            final_scores[i] = better_model_pred[i][1] * item_based + better_model_pred[i][0] * model_based
+            # final_scores[i] = better_model_pred[i] * item_based + (1 - better_model_pred[i]) * model_based
+            # if better_model_pred[i]:
+            #     final_scores[i] = model_based
+            # else:
+            #     final_scores[i] = item_based
 
     RMSE = compute_metrics()
 
