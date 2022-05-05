@@ -466,7 +466,7 @@ if __name__ == '__main__':
         print('combine_model input: ', combine_model_train_X[0], len(combine_model_train_X))
 
         # build model
-        params = {'n_estimators': 200, 'max_depth': 12, 'objective': 'multi:softlog', 'num_class': 2,
+        params = {'n_estimators': 200, 'max_depth': 12, 'objective': 'multi:softprob', 'num_class': 2,
                   'lambda': 1,  'gamma': 0.1, 'subsample': 0.7}
         # params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'subsample': 0.8,
         #           'colsample_bytree': 0.8, 'gamma': 0.1, 'reg_alpha': 1, 'objective': 'multi:softprob'}
@@ -480,12 +480,8 @@ if __name__ == '__main__':
         for i in range(len(Y_pred)):
             model_based = Y_pred[i]
             item_based = CF_prediction[i][2]
-            final_scores[i] = better_model_pred[i][1] * item_based + better_model_pred[i][0] * model_based
-            # final_scores[i] = better_model_pred[i] * item_based + (1 - better_model_pred[i]) * model_based
-            # if better_model_pred[i]:
-            #     final_scores[i] = model_based
-            # else:
-            #     final_scores[i] = item_based
+            # final_scores[i] = better_model_pred[i][1] * item_based + better_model_pred[i][0] * model_based
+            final_scores[i] = model_based
 
     RMSE = compute_metrics()
 

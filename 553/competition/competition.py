@@ -349,8 +349,8 @@ if __name__ == '__main__':
                   '4. Tune xgboost parameters (500 estimators, k = 25000), RMSE decrease to 0.977665' + '\n' + \
                   '5. Add business location features, RMSE 0.977643' + '\n' + \
                   '6. Encode business most frequent 3 categories features, RMSE 0.977747' + '\n' + \
-                  '7. Encode user features: friends, elite, yelp_since, RMSE 0.977596 (local 0.977601)' + '\n' + \
-                  '8. Update combine method' + '\n'
+                  '7. Encode user features: friends, elite, yelp_since, RMSE 0.977522 (local 0.977601)' + '\n' + \
+                  '8. Update combine method: use a xgboost softprob model to weight model, RMSE become worse' + '\n'
     print('Method Description:')
     print(description)
 
