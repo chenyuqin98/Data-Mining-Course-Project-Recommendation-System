@@ -24,6 +24,7 @@ def to_json(s):
     return json.loads(s)
 
 def find_attributes():
+    total_c, count_c = 0, 0
     for x in business_feature_list:
         attributes = x['attributes']
         # print(type(attributes))
@@ -41,10 +42,18 @@ def find_attributes():
         postal_code = x['postal_code']
         if postal_code:
             distinct_attribute['postal_code'].add(postal_code)
+        if x['categories']:
+            categories_list = x['categories'].split(', ')
+            # total_c += len(categories_list)
+            # count_c += 1
+            for c in categories_list:
+                category_words_num[c] += 1
+    # print(total_c/count_c)
 
 
 if __name__ == '__main__':
     distinct_attribute = defaultdict(set)
+    category_words_num = defaultdict(int)
     sc = SparkContext.getOrCreate()
     sc.setLogLevel('ERROR')
     # business_feature = sc.textFile("data/business.json").map(lambda x: json.loads(x)).\
@@ -79,11 +88,7 @@ if __name__ == '__main__':
     # print(business_feature.collect()[0])
 
     find_attributes()
-    print(distinct_attribute, len(distinct_attribute), len(distinct_attribute['post_code']))
+    # print(distinct_attribute, len(distinct_attribute), len(distinct_attribute['post_code']))
 
-    # print('test---------')
-    # s = "{'garage': False, 'street': True, 'validated': False, 'lot': True, 'valet': False}"
-    # s = s.replace("'", '"').replace('False', 'false').replace('True', 'true')
-    # print(is_json(s))
-    # d = json.loads(s)
-    # print(d)
+    category_words_num_list = sorted([(v,k) for k, v in category_words_num.items()], reverse=True)
+    print(len(category_words_num_list), category_words_num_list[100])

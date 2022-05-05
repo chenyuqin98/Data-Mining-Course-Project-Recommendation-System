@@ -208,12 +208,16 @@ def find_attributes():
                             business_attribute_dict[k].add(v)
                 else:
                     business_attribute_dict[k].add(v)
-        if x['city']:
-            business_attribute_dict['city'].add(x['city'])
-        if x['state']:
-            business_attribute_dict['state'].add(x['state'])
+        # if x['city']:
+        #     business_attribute_dict['city'].add(x['city'])
+        # if x['state']:
+        #     business_attribute_dict['state'].add(x['state'])
         if x['postal_code']:
             business_attribute_dict['postal_code'].add(x['postal_code'])
+        if x['categories']:
+            categories_list = x['categories'].split(', ')
+            for c in categories_list:
+                category_words_num_dict[c] += 1
 
 
 def encode_kv(k, v):
@@ -227,6 +231,18 @@ def encode_kv(k, v):
     except ValueError:
         en_v = -1
     return en_k, en_v
+
+
+def encode_business_category(c):
+    # return (category_frequency, category_index)
+    category_frequency = -1
+    if c in category_words_num_dict.keys():
+        category_frequency = category_words_num_dict[c]
+    try:
+        category_index = category_words_list.index(c)
+    except ValueError:
+        category_index = -1
+    return (category_frequency, category_index)
 
 
 def encode_attributes(x):
@@ -246,18 +262,26 @@ def encode_attributes(x):
                 en_k, en_v = encode_kv(k, v)
                 if en_k != -1:
                     attributes_list[en_k] = en_v
-    if x['city']:
-        en_k, en_v = encode_kv('city', x['city'])
-        attributes_list[en_k] = en_v
-    if x['state']:
-        en_k, en_v = encode_kv('state', x['state'])
-        attributes_list[en_k] = en_v
+    # if x['city']:
+    #     en_k, en_v = encode_kv('city', x['city'])
+    #     attributes_list[en_k] = en_v
+    # if x['state']:
+    #     en_k, en_v = encode_kv('state', x['state'])
+    #     attributes_list[en_k] = en_v
     if x['postal_code']:
         en_k, en_v = encode_kv('postal_code', x['postal_code'])
         attributes_list[en_k] = en_v
+    category_list = [np.NAN] * 3
+    if x['categories']:
+        categories_list = x['categories'].split(', ')
+        # format: (category_frequency, category_index)
+        categories_tuple_list = sorted(map(lambda x: encode_business_category(x), categories_list), reverse=True)
+        for k, item in enumerate(categories_tuple_list):
+            if k == 3: break
+            frequency, numerical_categories = item
+            category_list[k] = numerical_categories
     feature_list = [float(x[r]) if x[r] is not None else np.NAN for r in business_numerical_features_name]
-
-    return feature_list + attributes_list
+    return feature_list + attributes_list + category_list
 
 
 def compute_metrics():
@@ -298,8 +322,10 @@ if __name__ == '__main__':
                   '   RMSE decrease to 0.983612' + '\n' + \
                   '3. Most of business features are text format, encode them to numerical or bool (01), ' + '\n' + \
                   '   RMSE decrease to 0.980300' + '\n' + \
-                  '4. Tune xgboost parameters, RMSE decrease to 0.977665' + '\n' + \
-                  '5. add business location features' + '\n'
+                  '4. Tune xgboost parameters (500 estimators, k = 25000), RMSE decrease to 0.977665' + '\n' + \
+                  '5. Add business location features, RMSE 0.977643' + '\n' + \
+                  '6. Encode business most frequent 3 features' + '\n' + \
+                  '7. Encode user features: friends, elite, yelp_since' + '\n'
     print('Method Description:')
     print(description)
 
@@ -324,6 +350,8 @@ if __name__ == '__main__':
 
     # use this dict to encode text business attributes and location information (postcode...)
     business_attribute_dict = defaultdict(set)
+    category_words_num_dict = defaultdict(int)
+    category_words_list = sorted([k for k, v in category_words_num_dict.items()])
     business_feature_list = sc.textFile(fold_path + "business.json").map(lambda x: json.loads(x)).collect()
     # business_attribute_dict: {'BikeParking': {'true', 'false'}, ...}  key and all possible values
     find_attributes()
@@ -387,12 +415,19 @@ if __name__ == '__main__':
     # 参数的最佳取值：{'min_child_weight': 1}
     # 最佳模型得分: 0.24128261333847753
 
-    cv_params = {'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]}
-    # cv_params = {'subsample': [0.6, 0.7, 0.8, 0.9], 'colsample_bytree': [0.6, 0.7, 0.8, 0.9]}
-    # cv_params = {'reg_alpha': [0.05, 0.1, 1, 2, 3], 'reg_lambda': [0.05, 0.1, 1, 2, 3]}
+    # cv_params = {'gamma': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]}
+    # 参数的最佳取值：{'gamma': 0.1}
+    # 最佳模型得分: 0.2413582748433667
 
+    # cv_params = {'subsample': [0.6, 0.7, 0.8, 0.9], 'colsample_bytree': [0.6, 0.7, 0.8, 0.9]}
+    # 参数的最佳取值：{'colsample_bytree': 0.8, 'subsample': 0.9}
+    # 最佳模型得分: 0.24156498609356322
+
+    cv_params = {'reg_alpha': [0.05, 0.1, 1, 2, 3], 'reg_lambda': [0.05, 0.1, 1, 2, 3]}
+
+    # best parameters:
     other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
-                    'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 1, 'reg_lambda': 0}
+                    'subsample': 0.8, 'colsample_bytree': 0.9, 'gamma': 0.1, 'reg_alpha': 1, 'reg_lambda': 0}
     model = xgboost.XGBRegressor(**other_params)
     # from sklearn.metrics import make_scorer
     # mse = make_scorer(mean_squared_error, greater_is_better=False)
@@ -407,9 +442,7 @@ if __name__ == '__main__':
     print('最佳模型得分:{0}'.format(optimized_GBM.best_score_))
 
 
-    # best parameters:
-    other_params = {'learning_rate': 0.1, 'n_estimators': 500, 'max_depth': 5, 'min_child_weight': 1, 'seed': 0,
-                    'subsample': 0.8, 'colsample_bytree': 0.8, 'gamma': 0, 'reg_alpha': 0, 'reg_lambda': 1}
+    # use former best parameters:
     model = xgboost.XGBRegressor(**other_params)
     model.fit(X_train, Y_train)
     val_list = val_rdd.collect()
@@ -422,7 +455,7 @@ if __name__ == '__main__':
         # count final scores
         final_scores = [0] * len(Y_pred)
         RSME_li = []
-        for k in tqdm(range(20000, 30000, 1000)):
+        for k in tqdm(range(10000, 30000, 1000)):
             for i in range(len(Y_pred)):
                 model_based = Y_pred[i]
                 item_based = CL_prediction[i][2]
