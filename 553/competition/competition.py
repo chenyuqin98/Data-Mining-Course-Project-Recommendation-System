@@ -1,5 +1,20 @@
 # @Author : Yuqin Chen
 # @email : yuqinche@usc.edu
+description = 'The origin RMSE on valid data is 0.983970' + '\n' + \
+              '1. Use more user numerical features, RMSE decrease to 0.983621' + '\n' + \
+              '2. Use formula final_scores[i] = a * item_based + (1 - a) * model_based to combine, ' + '\n' + \
+              '   in which a = math.tanh(neighbor_size / k), train model and find the best k to combine model, ' + '\n' + \
+              '   RMSE decrease to 0.983612' + '\n' + \
+              '3. Most of business features are text format, encode them to numerical or bool (01), ' + '\n' + \
+              '   RMSE decrease to 0.980300' + '\n' + \
+              '4. Tune xgboost parameters (500 estimators, k = 25000), RMSE decrease to 0.977665' + '\n' + \
+              '5. Add business location features, RMSE 0.977643' + '\n' + \
+              '6. Encode business most frequent 3 categories features, RMSE 0.977747' + '\n' + \
+              '7. Encode user features: friends, elite, yelp_since, RMSE 0.977522 (local 0.977601)' + '\n' + \
+              '8. Update combine method: use a xgboost softprob model to weight model, RMSE become worse' + '\n' + \
+              '9. Use CF result as model input' + '\n'
+# Error Distribution, RMSE and Execution Time are printed in the program
+
 import sys
 import time
 from pyspark import SparkContext
@@ -339,18 +354,6 @@ def compute_metrics():
 
 if __name__ == '__main__':
     start_time = time.time()
-    description = 'The origin RMSE on valid data is 0.983970' + '\n' + \
-                  '1. Use more user numerical features, RMSE decrease to 0.983621' + '\n' + \
-                  '2. Use formula final_scores[i] = a * item_based + (1 - a) * model_based to combine, ' + '\n' + \
-                  '   in which a = math.tanh(neighbor_size / k), train model and find the best k to combine model, ' + '\n' + \
-                  '   RMSE decrease to 0.983612' + '\n' + \
-                  '3. Most of business features are text format, encode them to numerical or bool (01), ' + '\n' + \
-                  '   RMSE decrease to 0.980300' + '\n' + \
-                  '4. Tune xgboost parameters (500 estimators, k = 25000), RMSE decrease to 0.977665' + '\n' + \
-                  '5. Add business location features, RMSE 0.977643' + '\n' + \
-                  '6. Encode business most frequent 3 categories features, RMSE 0.977747' + '\n' + \
-                  '7. Encode user features: friends, elite, yelp_since, RMSE 0.977522 (local 0.977601)' + '\n' + \
-                  '8. Update combine method: use a xgboost softprob model to weight model, RMSE become worse' + '\n'
     print('Method Description:')
     print(description)
 

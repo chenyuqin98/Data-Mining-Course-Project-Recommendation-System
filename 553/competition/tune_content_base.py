@@ -46,7 +46,7 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
     ratings, similarities = [], []
     for i in range(len(user_items)):
         similar = count_pearson_similarity(business_id, user_items[i][0])
-        if similar > 0.5:
+        if similar > 0.8:
             ratings.append(user_items[i][1])
             similarities.append(similar)
 
@@ -72,6 +72,7 @@ def item_based_collaborative_filter_with_neighbor_size(user_id, business_id):
         return (user_id, business_id, avg, neighbor_size, similarity_feature)
     else:
         return (user_id, business_id, numerator / denominator, neighbor_size, similarity_feature)
+    # return (user_id, business_id, numerator / denominator, neighbor_size, similarity_feature)
 
 
 def count_pearson_similarity(item1, item2):
@@ -181,7 +182,7 @@ def compute_metrics():
 
 if __name__ == '__main__':
     start_time = time.time()
-    topN = 5
+    topN = 3
 
     sc = SparkContext.getOrCreate()
     sc.setLogLevel('ERROR')
@@ -223,24 +224,35 @@ if __name__ == '__main__':
     # item similarity dic to avoid repeat and thus accelerate
     item_similarity_dic = {}
 
-    best_N = 3
-    best_RMSE = 100
-    RMSE_list = []
-    for topN in tqdm(range(3, 10)):
-        CF_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
+    CF_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
 
-        # count final scores
-        final_scores = [0] * len(CF_prediction)
-        for i in range(len(CF_prediction)):
-            item_based = CF_prediction[i][2]
-            final_scores[i] = item_based
+    # count final scores
+    final_scores = [0] * len(CF_prediction)
+    for i in range(len(CF_prediction)):
+        item_based = CF_prediction[i][2]
+        final_scores[i] = item_based
 
-        RMSE = compute_metrics()
-        RMSE_list.append(RMSE)
-        if RMSE < best_RMSE:
-            best_RMSE = RMSE
-            best_N = topN
-    print('RMSE:', best_RMSE, 'best_N:', best_N)
+    RMSE = compute_metrics()
+    print(RMSE)
+
+    # best_N = 3
+    # best_RMSE = 100
+    # RMSE_list = []
+    # for topN in tqdm(range(3, 10)):
+    #     CF_prediction = val_rdd.map(lambda r: item_based_collaborative_filter_with_neighbor_size(r[0], r[1])).collect()
+    #
+    #     # count final scores
+    #     final_scores = [0] * len(CF_prediction)
+    #     for i in range(len(CF_prediction)):
+    #         item_based = CF_prediction[i][2]
+    #         final_scores[i] = item_based
+    #
+    #     RMSE = compute_metrics()
+    #     RMSE_list.append(RMSE)
+    #     if RMSE < best_RMSE:
+    #         best_RMSE = RMSE
+    #         best_N = topN
+    # print('RMSE:', best_RMSE, 'best_N:', best_N) # RMSE: 1.075444951456604 best_N: 3
 
     # print(max_neighbor)
     print('Execution Time:')
